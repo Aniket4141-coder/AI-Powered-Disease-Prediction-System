@@ -1,0 +1,36 @@
+{% set flash_messages = get_flashed_messages(with_categories=true) %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MediPredict AI | Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='react/assets/index.css') }}" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      window.__PAGE__ = 'profile'
+      window.__INITIAL_STATE__ = {
+        data: {
+          user: {
+            full_name: {{ (user[0] if user else '') | tojson }},
+            email: {{ (user[1] if user else '') | tojson }},
+            age: {{ (user[2] if user else '') | tojson }},
+            gender: {{ (user[3] if user else '') | tojson }},
+            profile_pic: {{ (user[4] if user else '') | tojson }}
+          }
+        },
+        meta: {
+          title: 'Profile & Preferences',
+          user: {
+            name: {{ (user[0] if user else 'Care Member') | tojson }}
+          }
+        },
+        flash: {{ flash_messages | tojson }}
+      }
+    </script>
+    <script type="module" src="{{ url_for('static', filename='react/assets/index.js') }}"></script>
+  </body>
+</html>
+

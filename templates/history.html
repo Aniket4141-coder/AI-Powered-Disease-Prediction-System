@@ -1,0 +1,39 @@
+{% set flash_messages = get_flashed_messages(with_categories=true) %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MediPredict AI | History</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='react/assets/index.css') }}" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      window.__PAGE__ = 'history'
+      window.__INITIAL_STATE__ = {
+        data: {
+          history: [
+            {% for row in history %}
+            {
+              symptoms: {{ row[0] | tojson }},
+              disease: {{ row[1] | tojson }},
+              model: {{ row[2] | tojson }},
+              time: {{ row[3] | tojson }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+          ]
+        },
+        meta: {
+          title: 'History Timeline',
+          user: {
+            name: {{ user_name | tojson if user_name else '"Care Member"' }}
+          }
+        },
+        flash: {{ flash_messages | tojson }}
+      }
+    </script>
+    <script type="module" src="{{ url_for('static', filename='react/assets/index.js') }}"></script>
+  </body>
+</html>
+

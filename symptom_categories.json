@@ -1,0 +1,50 @@
+{
+  "Fever & Infection": [
+    "fever",
+    "high_fever",
+    "mild_fever",
+    "chills",
+    "sweating"
+  ],
+  "Pain & Body Issues": [
+    "headache",
+    "joint_pain",
+    "muscle_pain",
+    "back_pain",
+    "neck_pain"
+  ],
+  "Digestive Issues": [
+    "nausea",
+    "vomiting",
+    "abdominal_pain",
+    "diarrhea",
+    "constipation"
+    
+  ],
+  "Respiratory Issues": [
+    "cough",
+    "breathlessness",
+    "throat_irritation",
+    "runny_nose",
+    "congestion"
+  ],
+  "Skin Problems": [
+    "skin_rash",
+    "itching",
+    "blisters"
+  ],
+  "Neurological Issues": [
+    "dizziness",
+    "confusion",
+    "fatigue",
+    "weakness"
+  ],
+  "Urinary Issues": [
+    "burning_micturition",
+    "bladder_discomfort"
+  ],
+  "Heart & Circulation": [
+    "chest_pain",
+    "fast_heart_rate"
+  ]
+}

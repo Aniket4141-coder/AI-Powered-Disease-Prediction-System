@@ -1,0 +1,34 @@
+{% set flash_messages = get_flashed_messages(with_categories=true) %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MediPredict AI | Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='react/assets/index.css') }}" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      window.__PAGE__ = 'result'
+      window.__INITIAL_STATE__ = {{ {
+        "data": {
+          "results": results,
+          "symptoms": symptoms,
+          "diseases": diseases,
+          "probabilities": probabilities,
+          "info": info
+        },
+        "meta": {
+          "title": "Prediction Results",
+          "user": {
+            "name": {{ user_name | tojson if user_name else '"Care Member"' }}
+          }
+        },
+        "flash": flash_messages
+      } | tojson }}
+    </script>
+    <script type="module" src="{{ url_for('static', filename='react/assets/index.js') }}"></script>
+  </body>
+</html>
+
