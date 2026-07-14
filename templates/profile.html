@@ -11,26 +11,8 @@
     <div id="root"></div>
     <script>
       window.__PAGE__ = 'profile'
-      window.__INITIAL_STATE__ = {
-        data: {
-          user: {
-            full_name: {{ (user[0] if user else '') | tojson }},
-            email: {{ (user[1] if user else '') | tojson }},
-            age: {{ (user[2] if user else '') | tojson }},
-            gender: {{ (user[3] if user else '') | tojson }},
-            profile_pic: {{ (user[4] if user else '') | tojson }}
-          }
-        },
-        meta: {
-          title: 'Profile & Preferences',
-          user: {
-            name: {{ (user[0] if user else 'Care Member') | tojson }}
-          }
-        },
-        flash: {{ flash_messages | tojson }}
-      }
+      window.__INITIAL_STATE__ = {{ page_state | tojson }}
     </script>
     <script type="module" src="{{ url_for('static', filename='react/assets/index.js') }}"></script>
   </body>
 </html>
-

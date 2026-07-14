@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, get_flashed_messages
 from flask_cors import CORS
 from flask_mysqldb import MySQL
 import pickle
@@ -11,6 +11,8 @@ import hashlib
 import hmac
 import time
 import re
+from pathlib import Path
+from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 try:
     import bcrypt
@@ -54,16 +56,21 @@ disease_info = {
 }
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+
+app.secret_key = os.getenv("SECRET_KEY", "dev-only-secret-key")
 CORS(app)
 
-UPLOAD_FOLDER = 'static/uploads'
+UPLOAD_FOLDER = str(BASE_DIR / 'static' / 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # ---------------- MYSQL CONFIG ----------------
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '4141'
-app.config['MYSQL_DB'] = 'disease_prediction'
+app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
+app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
+app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', '4141')
+app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'disease_prediction')
+app.config['MYSQL_PORT'] = int(os.getenv('MYSQL_PORT', '3306'))
 
 mysql = MySQL(app)
 
@@ -158,8 +165,10 @@ def ensure_tables():
 
 
 # ---------------- LOAD MODEL ----------------
-model = pickle.load(open("models/model.pkl", "rb"))
-features = pickle.load(open("models/features.pkl", "rb"))
+with open(BASE_DIR / "models" / "model.pkl", "rb") as model_file:
+    model = pickle.load(model_file)
+with open(BASE_DIR / "models" / "features.pkl", "rb") as features_file:
+    features = pickle.load(features_file)
 
 
 def build_feature_vector(symptom_list):
@@ -744,7 +753,7 @@ def register():
         hashed_password = generate_password_hash(password)
 
         cur.execute(
-            "INSERT INTO users(full_name,email,password) VALUES(%s,%s,%s)",
+            "INSERT INTO users(name,email,password) VALUES(%s,%s,%s)",
             (name, email, hashed_password)
         )
         mysql.connection.commit()
@@ -806,9 +815,9 @@ def login():
         if verify_password(stored_password, password, email=email, source="form_login"):
             
             session['user_id'] = user[0]
-            record_user_activity(user[0], 'login')   # ✅ session set
+            record_user_activity(user[0], 'login')   # session set
             
-            return redirect(url_for('dashboard'))   # 🔥 CHANGE HERE
+            return redirect(url_for('dashboard'))   # go to dashboard
         
         else:
             flash("Invalid credentials", "danger")
@@ -851,9 +860,30 @@ def history():
         (user_id,)
     )
 
-    history = cursor.fetchall()
+    history_rows = [
+        {
+            "symptoms": row[0],
+            "disease": row[1],
+            "model": row[2],
+            "time": str(row[3])
+        }
+        for row in cursor.fetchall()
+    ]
 
-    return render_template("history.html", history=history, user_name=user_name)
+    page_state = {
+        "data": {
+            "history": history_rows
+        },
+        "meta": {
+            "title": "History Timeline",
+            "user": {
+                "name": user_name
+            }
+        },
+        "flash": get_flashed_messages(with_categories=True)
+    }
+
+    return render_template("history.html", page_state=page_state)
 
 # ---------------- DASHBOARD ----------------
 @app.route('/dashboard')
@@ -864,11 +894,11 @@ def dashboard():
     user_id = session['user_id']
     cursor = mysql.connection.cursor()
 
-    # ✅ Total predictions
+    # Total predictions
     cursor.execute("SELECT COUNT(*) FROM predictions WHERE user_id=%s", (user_id,))
     total_predictions = cursor.fetchone()[0]
 
-    # ✅ Most common disease
+    # Most common disease
     prediction_column = resolve_prediction_column()
     cursor.execute(
         f"""
@@ -881,11 +911,11 @@ def dashboard():
         """,
         (user_id,)
     )
-    
+
     common = cursor.fetchone()
     most_common = common[0] if common else "N/A"
 
-    # ✅ Chart data
+    # Chart data
     cursor.execute(
         f"""
         SELECT {prediction_column} AS prediction, COUNT(*)
@@ -895,7 +925,7 @@ def dashboard():
         """,
         (user_id,)
     )
-    
+
     chart_data = cursor.fetchall()
 
     diseases = [row[0] for row in chart_data]
@@ -905,16 +935,23 @@ def dashboard():
     user_row = cursor.fetchone()
     user_name = user_row[0] if user_row else "Care Member"
 
-    return render_template(
-        "dashboard.html",
-        total=total_predictions,
-        common=most_common,
-        diseases=diseases,
-        counts=counts,
-        user_name=user_name,
-        page="dashboard-page"
-    )
+    page_state = {
+        "data": {
+            "total": total_predictions,
+            "mostCommon": most_common,
+            "diseases": diseases,
+            "counts": counts
+        },
+        "meta": {
+            "title": "Dashboard Overview",
+            "user": {
+                "name": user_name
+            }
+        },
+        "flash": get_flashed_messages(with_categories=True)
+    }
 
+    return render_template("dashboard.html", page_state=page_state)
 
 # ---------------- PREDICT PAGE ----------------
 @app.route('/predict')
@@ -926,11 +963,21 @@ def predict_page():
         cursor.execute("SELECT name FROM users WHERE id=%s", (session['user_id'],))
         user_row = cursor.fetchone()
         user_name = user_row[0] if user_row else None
-    return render_template(
-        "predict.html",
-        categories=categories,
-        user_name=user_name
-    )
+
+    page_state = {
+        "data": {
+            "categories": categories
+        },
+        "meta": {
+            "title": "Predict Disease",
+            "user": {
+                "name": user_name or "Care Member"
+            }
+        },
+        "flash": get_flashed_messages(with_categories=True)
+    }
+
+    return render_template("predict.html", page_state=page_state)
 
 
 @app.route('/result')
@@ -1391,7 +1438,7 @@ def api_register():
 
         hashed_password = generate_password_hash(password)
         cur.execute(
-            "INSERT INTO users(full_name,email,password) VALUES(%s,%s,%s)",
+            "INSERT INTO users(name,email,password) VALUES(%s,%s,%s)",
             (name, email, hashed_password)
         )
         mysql.connection.commit()
@@ -1414,7 +1461,7 @@ def api_login():
             return jsonify({"error": "Email and password are required"}), 400
 
         cur = mysql.connection.cursor()
-        cur.execute("SELECT id, full_name, email, password FROM users WHERE email=%s", (email,))
+        cur.execute("SELECT id, name, email, password FROM users WHERE email=%s", (email,))
         user = cur.fetchone()
         cur.close()
 
@@ -1690,14 +1737,37 @@ def profile():
         profile_pic
     )
 
-    return render_template("profile.html", user=user_tuple)
+    page_state = {
+        "data": {
+            "user": {
+                "full_name": user_tuple[0],
+                "email": user_tuple[1],
+                "age": user_tuple[2],
+                "gender": user_tuple[3],
+                "profile_pic": user_tuple[4]
+            }
+        },
+        "meta": {
+            "title": "Profile & Preferences",
+            "user": {
+                "name": user_tuple[0] or "Care Member"
+            }
+        },
+        "flash": get_flashed_messages(with_categories=True)
+    }
+
+    return render_template("profile.html", page_state=page_state)
 
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     with app.app_context():
         ensure_tables()
-    app.run(debug=True)
+    app.run(
+        host=os.getenv("HOST", "0.0.0.0"),
+        port=int(os.getenv("PORT", "5000")),
+        debug=os.getenv("FLASK_DEBUG", "0") == "1"
+    )
 
 
 
